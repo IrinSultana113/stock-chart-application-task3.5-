@@ -66,9 +66,14 @@ header h1 {
     font-size: 0.9rem;
 }
 
-.input-group input {
+.autocomplete-wrapper {
+    position: relative;
     flex: 1;
     min-width: 220px;
+}
+
+.autocomplete-wrapper input {
+    width: 100%;
     padding: 10px 14px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
@@ -77,8 +82,41 @@ header h1 {
     transition: border-color 0.2s;
 }
 
-.input-group input:focus {
+.autocomplete-wrapper input:focus {
     border-color: var(--primary-color);
+}
+
+.autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 9999; /* চার্টের ওপরে যাতে প্রপারলি থাকে */
+    list-style: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: none;
+}
+
+.autocomplete-list li {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.autocomplete-list li:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-list li:hover {
+    background-color: #eff6ff;
+    color: var(--primary-color);
 }
 
 .input-group button {
@@ -103,6 +141,8 @@ header h1 {
     align-items: center;
     margin-bottom: 15px;
     width: 100%;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .price-display {

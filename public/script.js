@@ -6,22 +6,34 @@ let liveInterval = null;
 document.addEventListener('DOMContentLoaded', () => {
     const loadBtn = document.getElementById('loadBtn');
     const stockSearch = document.getElementById('stockSearch');
-    const stockList = document.getElementById('stockList');
+    const autocompleteList = document.getElementById('autocompleteList');
     const rangeButtons = document.querySelectorAll('.range-btn');
     const controlsEl = document.getElementById('chartControls');
 
-    // প্রথম অবস্থায় কন্ট্রোল বাটনগুলো হাইড থাকবে যতক্ষণ না সার্চ করা হয়
     controlsEl.style.display = 'none';
 
     let debounceTimer;
 
+    // অটোকমপ্লিট সার্চ ইনপুট হ্যান্ডলার
     // অটোকমপ্লিট সার্চ ইনপুট হ্যান্ডলার
     stockSearch.addEventListener('input', (e) => {
         const query = e.target.value.trim();
         clearTimeout(debounceTimer);
 
         if (query.length < 1) {
-            stockList.innerHTML = '';
+            autocompleteList.innerHTML = '';
+            autocompleteList.style.display = 'none';
+            
+            // ইনপুট খালি হলে পুরোনো চার্ট ও কন্ট্রোল হাইড করে দিন
+            controlsEl.style.display = 'none';
+            if (liveInterval) clearInterval(liveInterval);
+            if (stockChart) {
+                stockChart.destroy();
+                stockChart = null;
+            }
+            const priceDisplayEl = document.getElementById('priceDisplay');
+            if (priceDisplayEl) priceDisplayEl.textContent = '';
+            currentSymbol = '';
             return;
         }
 
@@ -30,17 +42,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
                 const stocks = await res.json();
                 
-                stockList.innerHTML = '';
-                stocks.forEach(stock => {
-                    const option = document.createElement('option');
-                    option.value = stock.symbol;
-                    option.textContent = `${stock.symbol} - ${stock.name}`;
-                    stockList.appendChild(option);
-                });
+                autocompleteList.innerHTML = '';
+                if (stocks && stocks.length > 0) {
+                    stocks.forEach(stock => {
+                        const li = document.createElement('li');
+                        li.textContent = `${stock.symbol} - ${stock.name}`;
+                        li.dataset.symbol = stock.symbol;
+
+                        li.addEventListener('click', () => {
+                            stockSearch.value = stock.symbol;
+                            autocompleteList.innerHTML = '';
+                            autocompleteList.style.display = 'none';
+                            loadBtn.click();
+                        });
+
+                        autocompleteList.appendChild(li);
+                    });
+                    autocompleteList.style.display = 'block';
+                } else {
+                    autocompleteList.style.display = 'none';
+                }
             } catch (err) {
                 console.error('Autocomplete error:', err);
             }
         }, 300);
+    });
+
+    // বাইরে ক্লিক করলে ড্রপডাউন হাইড করার লজিক
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.autocomplete-wrapper')) {
+            autocompleteList.style.display = 'none';
+        }
     });
 
     // চার্ট লোড করার বাটন ইভেন্ট
@@ -91,13 +123,12 @@ async function fetchStockData(symbol, range, isBackground = false) {
         if (result.success) {
             renderChart(result.symbol, result.data);
 
-            // Jodi range '1d' hoy, tahobe proti 5 second por por auto update hobe (Live Polling)
             if (range === '1d') {
                 if (liveInterval) clearInterval(liveInterval);
                 if (!isBackground) {
                     liveInterval = setInterval(() => {
                         fetchStockData(symbol, range, true);
-                    }, 5000); // Proti 5 second-e background e data anbe
+                    }, 5000);
                 }
             } else {
                 if (liveInterval) clearInterval(liveInterval);
