@@ -44,6 +44,7 @@ end
 
 # ২. স্টকের হিস্টোরিক্যাল ডেটা আনার জন্য API endpoint
 # API endpoint to fetch real stock data from Yahoo Finance
+# API endpoint to fetch real stock data from Yahoo Finance
 get '/api/stock/:symbol' do
   content_type :json
   symbol = params[:symbol].upcase
@@ -90,6 +91,18 @@ get '/api/stock/:symbol' do
             y: q.round(2)
           }
         end
+
+        # লাইভ ফ্লাকচুয়েশন এবং প্রতি রিকোয়েস্টে নতুন পয়েন্ট যোগ করার লজিক
+        if range == '1d' && !chart_data.empty?
+          last_price = chart_data.last[:y]
+          new_price = (last_price + rand(-0.4..0.4)).round(2)
+          
+          chart_data << {
+            x: Time.now.strftime('%H:%M:%S'),
+            y: new_price
+          }
+        end
+
         if chart_data.empty?
           chart_data = generate_live_market_data(range)
         end
@@ -106,6 +119,7 @@ get '/api/stock/:symbol' do
   end
 end
 
+# রিয়েল মার্কেটের মতো পরিবর্তনশীল ডেটা জেনারেটর
 def generate_live_market_data(range)
   count = case range
           when '1d' then 30
@@ -115,17 +129,18 @@ def generate_live_market_data(range)
           when '1y' then 50
           else 30
           end
+  
   base_price = 342.50 + (rand(-5.0..5.0))
   now = Time.now
   step = case range
-         when '1d' then 60 # প্রতি ১ মিনিট অন্তর
+         when '1d' then 60
          when '5d', '1w' then 3600
          else 86400
          end
 
   (0...count).map do |i|
     time = now - (count - i) * step
-    base_price += (rand(-0.6..0.6)) # প্রতি পয়েন্টে রিয়েল প্রাইসের মতো ওঠা নামা
+    base_price += (rand(-0.6..0.6))
     {
       x: time.strftime(range == '1d' ? '%H:%M:%S' : '%Y-%m-%d'),
       y: base_price.round(2)
