@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Tracker - Task 3.5</title>
+    <link rel="stylesheet" href="/style.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Stock Market Viewer</h1>
+            <p class="subtitle">Search for any stock symbol to view chart</p>
+        </header>
+
+        <div class="search-section">
+            <div class="input-group">
+                <label for="stockSearch">Select Stock:</label>
+                <input type="text" id="stockSearch" list="stockList" placeholder="Type stock name..." autocomplete="off">
+                <datalist id="stockList"></datalist>
+                <button id="loadBtn">Load Chart</button>
+            </div>
+        </div>
+
+        <div class="chart-controls" id="chartControls" style="display: none;">
+            <div class="range-buttons">
+                <button class="range-btn active" data-range="1d">1D</button>
+                <button class="range-btn" data-range="5d">5D</button>
+                <button class="range-btn" data-range="1w">1W</button>
+                <button class="range-btn" data-range="1m">1M</button>
+                <button class="range-btn" data-range="1y">1Y</button>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div id="loading" class="loading" style="display: none;">Loading stock data...</div>
+            <canvas id="stockChart"></canvas>
+        </div>
+    </div>
+
+    <script src="/script.js"></script>
+</body>
+</html>
