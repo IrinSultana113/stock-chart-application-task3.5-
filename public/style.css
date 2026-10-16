@@ -99,8 +99,16 @@ header h1 {
 
 .chart-controls {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 15px;
+    width: 100%;
+}
+
+.price-display {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1e293b;
 }
 
 .range-buttons {

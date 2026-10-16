@@ -1,6 +1,7 @@
 let stockChart = null;
 let currentSymbol = '';
 let currentRange = '1d';
+let liveInterval = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     const loadBtn = document.getElementById('loadBtn');
@@ -46,8 +47,13 @@ document.addEventListener('DOMContentLoaded', () => {
     loadBtn.addEventListener('click', () => {
         const val = stockSearch.value.trim().split(' ')[0];
         if (val) {
+            if (liveInterval) clearInterval(liveInterval);
             currentSymbol = val.toUpperCase();
             controlsEl.style.display = 'flex';
+            rangeButtons.forEach(b => b.classList.remove('active'));
+            const defaultBtn = document.querySelector('.range-btn[data-range="1d"]');
+            if (defaultBtn) defaultBtn.classList.add('active');
+            currentRange = '1d';
             fetchStockData(currentSymbol, currentRange);
         } else {
             alert('Please select or enter a stock symbol.');
@@ -66,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
             rangeButtons.forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
             currentRange = e.target.getAttribute('data-range');
+            if (liveInterval) clearInterval(liveInterval);
             if (currentSymbol) {
                 fetchStockData(currentSymbol, currentRange);
             }
@@ -73,9 +80,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-async function fetchStockData(symbol, range) {
+async function fetchStockData(symbol, range, isBackground = false) {
     const loadingEl = document.getElementById('loading');
-    loadingEl.style.display = 'block';
+    if (!isBackground) loadingEl.style.display = 'block';
 
     try {
         const response = await fetch(`/api/stock/${symbol}?range=${range}`);
@@ -83,14 +90,26 @@ async function fetchStockData(symbol, range) {
 
         if (result.success) {
             renderChart(result.symbol, result.data);
+
+            // Jodi range '1d' hoy, tahobe proti 5 second por por auto update hobe (Live Polling)
+            if (range === '1d') {
+                if (liveInterval) clearInterval(liveInterval);
+                if (!isBackground) {
+                    liveInterval = setInterval(() => {
+                        fetchStockData(symbol, range, true);
+                    }, 5000); // Proti 5 second-e background e data anbe
+                }
+            } else {
+                if (liveInterval) clearInterval(liveInterval);
+            }
         } else {
-            alert(result.error || 'Failed to fetch stock data.');
+            if (!isBackground) alert(result.error || 'Failed to fetch stock data.');
         }
     } catch (error) {
         console.error('Error fetching stock data:', error);
-        alert('Network error while fetching stock data.');
+        if (!isBackground) alert('Network error while fetching stock data.');
     } finally {
-        loadingEl.style.display = 'none';
+        if (!isBackground) loadingEl.style.display = 'none';
     }
 }
 
@@ -99,6 +118,11 @@ function renderChart(symbol, dataPoints) {
 
     const labels = dataPoints.map(d => d.x);
     const values = dataPoints.map(d => d.y);
+    const latestPrice = values[values.length - 1];
+    const priceDisplayEl = document.getElementById('priceDisplay');
+    if (priceDisplayEl) {
+        priceDisplayEl.textContent = `${symbol} Latest Price: $${Number(latestPrice).toFixed(2)}`;
+    }
 
     if (stockChart) {
         stockChart.destroy();
