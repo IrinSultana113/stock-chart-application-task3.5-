@@ -45,15 +45,16 @@ end
 # ২. স্টকের হিস্টোরিক্যাল ডেটা আনার জন্য API endpoint
 # API endpoint to fetch real stock data from Yahoo Finance
 # API endpoint to fetch real stock data from Yahoo Finance
+# API endpoint to fetch real stock data from Yahoo Finance
 get '/api/stock/:symbol' do
   content_type :json
   symbol = params[:symbol].upcase
   range = params[:range] || '1d'
 
-  interval = case range
+ interval = case range
              when '1d' then '1m'
-             when '5d', '1w' then '15m'
-             when '1m' then '1d'
+             when '5d', '1w' then '60m'
+             when '1m' then '90m' # ১ মাসের জন্য আরো নিখুঁত ইন্টারভাল
              when '1y' then '1wk'
              else '1d'
              end
@@ -86,28 +87,46 @@ get '/api/stock/:symbol' do
         quotes = result.dig('indicators', 'quote', 0, 'close') || []
 
         chart_data = timestamps.zip(quotes).reject { |t, q| t.nil? || q.nil? }.map do |t, q|
+          time_obj = Time.at(t)
           {
-            x: Time.at(t).strftime(range == '1d' ? '%H:%M:%S' : '%Y-%m-%d'),
+            timestamp: t, # সঠিকভাবে সর্ট করার জন্য আসল টাইমস্ট্যাম্প রাখা হলো
+            x: time_obj.strftime(range == '1d' ? '%H:%M:%S' : '%Y-%m-%d'),
             y: q.round(2)
           }
         end
 
-        # লাইভ ফ্লাকচুয়েশন এবং প্রতি রিকোয়েস্টে নতুন পয়েন্ট যোগ করার লজিক
+        # টাইম অনুযায়ী ক্রমানুসারে সাজানো এবং ডুপ্লিকেট টাইম রিমুভ করা
+        chart_data = chart_data.uniq { |d| d[:x] }.sort_by { |d| d[:timestamp] }
+
+        # শুধুমাত্র '1d' রেঞ্জের ক্ষেত্রে সর্বশেষ লাইভ পয়েন্ট ও ফ্লাকচুয়েশন যোগ হবে
         if range == '1d' && !chart_data.empty?
           last_price = chart_data.last[:y]
           new_price = (last_price + rand(-0.4..0.4)).round(2)
           
           chart_data << {
+            timestamp: Time.now.to_i,
             x: Time.now.strftime('%H:%M:%S'),
             y: new_price
           }
         end
+limit_count = case range
+                      when '1d' then 40
+                      when '5d' then 5   # ৫ দিনের জন্য ঠিক ৫টি পয়েন্ট
+                      when '1w' then 7   # ৭ দিনের জন্য ঠিক ৭টি পয়েন্ট (১ সপ্তাহ)
+                      when '1m' then 30  # ১ মাসের জন্য ৩০টি পয়েন্ট
+                      when '1y' then 52  # ১ বছরের জন্য ৫২টি সপ্তাহিক পয়েন্ট
+                      else chart_data.length
+                      end
 
-        if chart_data.empty?
-          chart_data = generate_live_market_data(range)
+        # শেষ দিক থেকে নির্দিষ্ট সংখ্যক ডেটা ফিল্টার নেওয়া
+        clean_data = chart_data.map { |d| { x: d[:x], y: d[:y] } }.last(limit_count)
+
+
+        if clean_data.empty?
+          clean_data = generate_live_market_data(range)
         end
 
-        { success: true, symbol: symbol, data: chart_data }.to_json
+        { success: true, symbol: symbol, data: clean_data }.to_json
       else
         { success: true, symbol: symbol, data: generate_live_market_data(range) }.to_json
       end
@@ -116,34 +135,5 @@ get '/api/stock/:symbol' do
     end
   rescue StandardError => e
     { success: true, symbol: symbol, data: generate_live_market_data(range) }.to_json
-  end
-end
-
-# রিয়েল মার্কেটের মতো পরিবর্তনশীল ডেটা জেনারেটর
-def generate_live_market_data(range)
-  count = case range
-          when '1d' then 30
-          when '5d' then 50
-          when '1w' then 40
-          when '1m' then 30
-          when '1y' then 50
-          else 30
-          end
-  
-  base_price = 342.50 + (rand(-5.0..5.0))
-  now = Time.now
-  step = case range
-         when '1d' then 60
-         when '5d', '1w' then 3600
-         else 86400
-         end
-
-  (0...count).map do |i|
-    time = now - (count - i) * step
-    base_price += (rand(-0.6..0.6))
-    {
-      x: time.strftime(range == '1d' ? '%H:%M:%S' : '%Y-%m-%d'),
-      y: base_price.round(2)
-    }
   end
 end
